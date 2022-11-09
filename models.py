@@ -1,6 +1,23 @@
-from sqlalchemy import Column, Integer, Float, String, Boolean, ForeignKey
+from sqlalchemy import (
+    Column,
+    Integer,
+    Float,
+    String,
+    Boolean,
+    ForeignKey,
+    DateTime
+)
 from sqlalchemy.orm import relationship
 from database import Base
+import datetime
+
+
+class Import(Base):
+    __tablename__ = "imports"
+    id = Column(Integer, primary_key=True)
+    url = Column(String(256))
+    created_on = Column(DateTime, default=datetime.datetime.now)
+    updated_on = Column(DateTime, onupdate=datetime.datetime.now)
 
 
 class Category(Base):
@@ -69,6 +86,8 @@ class Product(Base):
     
     variation_1_color_id = Column(Integer, ForeignKey("colors.id"), nullable=True)
     variation_1_color = relationship("Color", foreign_keys='Product.variation_1_color_id')
+
+    import_id = Column(Integer, ForeignKey("colors.id"))
 
 
 
