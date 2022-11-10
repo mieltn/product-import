@@ -1,12 +1,15 @@
 import codecs
 import csv
 import requests
+from fastapi import status
+
 
 def validateURL(url):
     r = requests.get(url)
     if r.status_code != status.HTTP_200_OK:
         return r, False
     return r, True
+
 
 def fetchCSV(response):
     text = codecs.iterdecode(response.iter_lines(), 'utf-8')

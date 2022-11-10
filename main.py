@@ -1,13 +1,11 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine
+from database import SessionLocal
 
 import models, schemas, crud
-
 from utils import validateURL, fetchCSV
 
-# models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -17,25 +15,6 @@ def getDB():
         yield db
     finally:
         db.close()
-
-
-# @app.get("/products")
-# def getProducts(db: Session = Depends(getDB)):
-#     products= db.query(models.Product).all()
-#     return products
-
-# @app.get("/products/{productID}")
-# def getProductsByID(productID: int, db: Session = Depends(getDB)):
-#     product = db.query(models.Product).get(productID)
-#     return product
-
-# @app.post("/products/new")
-# def createProduct(product: schemas.Product, db: Session = Depends(getDB)):
-#     newProduct = models.Product(**product.dict())
-#     db.add(newProduct)
-#     db.commit()
-#     db.refresh(newProduct)
-#     return newProduct
 
 
 @app.post("/import")
@@ -57,6 +36,7 @@ def importProducts(input: schemas.BaseImport, db: Session = Depends(getDB)):
                 {"message": "failed to create product {}".format(row['id'])},
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        break
         
     return JSONResponse(
         {"importID": imprt.id},
@@ -75,7 +55,7 @@ def getImport(importID: int, db: Session = Depends(getDB)):
     return imprt
 
 
-@app.get("/products/{productID}")
+@app.get("/products/{productID}", response_model=schemas.Product)
 def getProducts(productID: int, db: Session = Depends(getDB)):
     return crud.getProductByID(productID, db, models.Product)
 
@@ -85,24 +65,26 @@ def getProducts(priceFrom: float, priceTo: float, db: Session = Depends(getDB)):
     return crud.getProductsFromRange(priceFrom, priceTo, db, models.Product)
 
 
-@app.patch("/products/{productID}")
+@app.patch("/products/{productID}", response_model=schemas.Product)
 def partialUpdateProduct(
     productID: int,
-    setValues: schemas.ProductBase,
+    setValues: schemas.InputProduct,
     db: Session = Depends(getDB)
 ):
-    isUpdated = crud.partialUpdateProduct(productID, setValues, db, models.Product)
+    row = setValues.dict(exclude_unset=True)
+    row['id'] = productID
+    isUpdated = crud.partialUpdateProduct(productID, row, db, models.Product)
+
     if not isUpdated:
         return JSONResponse(
             {"message": "no product {} exists".format(productID)},
             status_code = status.HTTP_404_NOT_FOUND
         )
-    
+
     return JSONResponse(
         {"message": "successfully updated product {}".format(productID)},
         status_code = status.HTTP_200_OK
     )
-
 
 
 @app.delete("/products/{productID}")

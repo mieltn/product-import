@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import update
-import models
+import models, schemas
 # import sys
 # sys.setrecursionlimit(1500)
 # from sqlalchemy.sql import text
@@ -92,45 +92,40 @@ def updateOrCreateProduct(
     db: Session,
     model: models.Product
 ):
-    setValues = {
-        'id': row['id'],
-        'model': row['model'],
-        'name': row['name'],
-        'current_price': row['current_price'],
-        'raw_price': row['raw_price'],
-        'discount': row['discount'],
-        'likes_count': row['likes_count'],
-        'is_new': row['is_new'],
-        'codCountry': row['codCountry'],
-        'variation_0_thumbnail': row['variation_0_thumbnail'],
-        'variation_0_image':row['variation_0_image'],
-        'variation_1_thumbnail': row['variation_1_thumbnail'],
-        'variation_1_image': row['variation_1_image'],
-        'image_url': row['image_url'],
-        'url': row['url'],
-        'category_id': getOrCreateCategory(db, models.Category, row['category']),
-        'subcategory_id': getOrCreateSubcategory(db, models.Subcategory, row['subcategory']),
-        'currency_id': getOrCreateCurrency(db, models.Currency, row['currency']),
-        'brand_id': getOrCreateBrand(db, models.Brand, row['brand'], row['brand_url']),
-        'variation_0_color_id': getOrCreateColor(db, models.Color, row['variation_0_color']),
-        'variation_1_color_id': getOrCreateColor(db, models.Color, row['variation_1_color']),
-        'imprt_id': row['imprt_id']
-    }
+    row['category_id'] = getOrCreateCategory(
+        db, models.Category, row.pop('category', None)
+    )
+    row['subcategory_id'] = getOrCreateSubcategory(
+        db, models.Subcategory, row.pop('subcategory', None)
+    )
+    row['currency_id'] = getOrCreateCurrency(
+        db, models.Currency, row.pop('currency', None)
+    )
+    row['brand_id'] = getOrCreateBrand(
+        db, models.Currency, row.pop('brand', None), row.pop('brand_url', None)
+    )
+    row['variation_0_color_id'] = getOrCreateColor(
+        db, models.Color, row.pop('variation_0_color', None)
+    )
+    row['variation_1_color_id'] = getOrCreateColor(
+        db, models.Color, row.pop('variation_1_color', None)
+    )
+
     product = db.query(model).filter(model.id == row['id']).first()
     if product:
         stmt = (
             update(model)
             .where(model.id == row['id'])
-            .values(**setValues)
+            .values(**row)
         )
         db.execute(stmt)
         db.refresh(product)
     else:
-        product = model(**setValues)
+        product = model(**row)
         db.add(product)
         db.commit()
         db.refresh(product)
-    
+        
     return product
 
 
@@ -140,6 +135,40 @@ def getProductByID(productID: int, db: Session, model: models.Product):
 
 def getProductsFromRange(priceFrom: float, priceTo: float, db: Session, model: models.Product):
     return db.query(model).filter(model.current_price > priceFrom, model.current_price < priceTo).all()
+
+
+def partialUpdateProduct(productID: int, row: dict, db: Session, model: models.Product):
+
+    if 'category' in row:
+        row['category_id'] = getOrCreateCategory(
+            db, models.Category, row.pop('category', None)
+        )
+    if 'subcategory' in row:
+        row['subcategory_id'] = getOrCreateSubcategory(
+            db, models.Subcategory, row.pop('subcategory', None)
+        )
+    if 'currency' in row:
+        row['currency_id'] = getOrCreateCurrency(
+            db, models.Currency, row.pop('currency', None)
+        )
+    if 'brand' in row:
+        row['brand_id'] = getOrCreateBrand(
+            db, models.Currency, row.pop('brand', None), row.pop('brand_url', None)
+        )
+    if 'variation_0_color' in row:
+        row['variation_0_color_id'] = getOrCreateColor(
+            db, models.Color, row.pop('variation_0_color', None)
+        )
+    if 'variation_1_color' in row:
+        row['variation_1_color_id'] = getOrCreateColor(
+            db, models.Color, row.pop('variation_1_color', None)
+        )
+
+    rowsAffected = db.query(model).filter(model.id == productID).update(row)
+    if rowsAffected:
+        db.commit()
+        return True
+    return False
 
 
 def deleteProduct(productID: int, db: Session, model: models.Product):

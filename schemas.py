@@ -59,7 +59,7 @@ class Color(BaseModel):
         orm_mode = True
 
 
-class ProductBase(BaseModel):
+class BaseProduct(BaseModel):
     id: int | None = None
     model: str | None = None
     name: str | None = None
@@ -76,19 +76,25 @@ class ProductBase(BaseModel):
     image_url: str | None = None
     url: str | None = None
 
-    category_id: int | None = None
-    subcategory_id: int | None = None
-    currency_id: int | None = None
-    brand_id: int | None = None
-    variation_0_color_id: int | None = None
-    variation_1_color_id: int | None = None
-    imprt_id: int | None = None
+    class Config:
+        orm_mode = True
+
+
+class InputProduct(BaseProduct):
+
+    category: str | None = None
+    subcategory: str | None = None
+    currency: str | None = None
+    brand: str | None = None
+    brand_url: str | None = None
+    variation_0_color: str | None = None
+    variation_1_color: str | None = None
 
     class Config:
         orm_mode = True
 
 
-class Product(ProductBase):
+class Product(BaseProduct):
     id: int
     model: str
     name: str
@@ -104,14 +110,6 @@ class Product(ProductBase):
     subcategory_id: int
     currency_id: int
     imprt_id: int
-
-    # category: Category
-    # subcategory: Subcategory
-    # currency: Currency
-    # brand: Brand | None = None
-    # variation_0_color: Color | None = None
-    # variation_1_color: Color | None = None
-    # imprt: Import
 
     class Config:
         orm_mode = True
