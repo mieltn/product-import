@@ -3,3 +3,4 @@ venv
 **.db
 **.ipynb**
 test.py
+alembic/versions

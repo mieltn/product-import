@@ -87,7 +87,8 @@ class Product(Base):
     variation_1_color_id = Column(Integer, ForeignKey("colors.id"), nullable=True)
     variation_1_color = relationship("Color", foreign_keys='Product.variation_1_color_id')
 
-    import_id = Column(Integer, ForeignKey("colors.id"))
+    imprt_id = Column(Integer, ForeignKey("imports.id"))
+    imprt = relationship("Import")
 
 
 

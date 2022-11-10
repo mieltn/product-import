@@ -1,15 +1,11 @@
-from fastapi import FastAPI, Request, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 
 import models, schemas, crud
 
-import codecs
-import csv
-import requests
-
-import itertools
+from utils import validateURL, fetchCSV
 
 # models.Base.metadata.create_all(bind=engine)
 
@@ -42,42 +38,9 @@ def getDB():
 #     return newProduct
 
 
-def validateURL(url):
-    r = requests.get(url)
-    if r.status_code != status.HTTP_200_OK:
-        return r, False
-    return r, True
-
-
-def fetchCSV(response):
-    text = codecs.iterdecode(response.iter_lines(), 'utf-8')
-    reader = csv.reader(text, delimiter=',')
-    headers = next(reader)
-    intCols = ['discount', 'likes_count', 'id']
-    floatCols = ['current_price', 'raw_price']
-    for line in reader:
-        rowDict = {}
-        for key, value in zip(headers, line):
-            if value == '':
-                rowDict[key] = None
-            elif value == 'true':
-                rowDict[key] = True
-            elif value == 'false':
-                rowDict[key] = False
-            elif key in intCols:
-                rowDict[key] = int(value)
-            elif key in floatCols:
-                rowDict[key] = float(value)
-            else:
-                rowDict[key] = value
-        yield rowDict
-
-
 @app.post("/import")
-async def importProducts(request: Request, db: Session = Depends(getDB)):
-    json = await request.json()
-
-    response, urlIsValid = validateURL(json["url"])
+def importProducts(input: schemas.BaseImport, db: Session = Depends(getDB)):
+    response, urlIsValid = validateURL(input.url)
     if not urlIsValid:
         return JSONResponse(
             {"message": "invalid url"},
@@ -85,53 +48,69 @@ async def importProducts(request: Request, db: Session = Depends(getDB)):
         )
 
     data = fetchCSV(response)
-    importID = crud.createImport(db, models.Import, json["url"])
+    imprt = crud.createOrUpdateImport(db, models.Import, input.url)
     for row in data:
-        row['import_id'] = importID
-        pr = crud.updateOrCreateProduct(row, db, models.Product)
-        if not pr:
+        row['imprt_id'] = imprt.id
+        product = crud.updateOrCreateProduct(row, db, models.Product)
+        if not product:
             return JSONResponse(
                 {"message": "failed to create product {}".format(row['id'])},
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        # break
         
     return JSONResponse(
-        {"importID": importID},
-        status_code = status.HTTP_201_CREATED
+        {"importID": imprt.id},
+        status_code = status.HTTP_200_OK
     )
 
 
-@app.get("/import/{importID}", response_model=schemas.Import)
+@app.get("/import/{importID}")
 def getImport(importID: int, db: Session = Depends(getDB)):
-    imp = crud.getImport(db, models.Import, importID)
-    if not imp:
+    imprt = crud.getImport(db, models.Import, importID)
+    if not imprt:
         return JSONResponse(
-            {"message": "failed to get import {}".format(importID)},
+            {"message": "no import {} exists".format(importID)},
             status_code = status.HTTP_404_NOT_FOUND
         )
-    return imp
+    return imprt
 
 
-@app.get("/products/{productID}", response_model=schemas.Product)
-def getProducts(productID, db: Session = Depends(getDB)):
+@app.get("/products/{productID}")
+def getProducts(productID: int, db: Session = Depends(getDB)):
     return crud.getProductByID(productID, db, models.Product)
 
-# @app.get("/products")
-# def getProducts(priceFrom: float, priceTo: float, db: Session = Depends(getDB)):
-#     return crud.getProductsFromRange(priceFrom, priceTo, db, models.Product)
+
+@app.get("/products")
+def getProducts(priceFrom: float, priceTo: float, db: Session = Depends(getDB)):
+    return crud.getProductsFromRange(priceFrom, priceTo, db, models.Product)
 
 
-# @app.patch("/products/{productID}")
-# def updateProduct(productID, db: Session = Depends(getDB)):
+@app.patch("/products/{productID}")
+def partialUpdateProduct(
+    productID: int,
+    setValues: schemas.ProductBase,
+    db: Session = Depends(getDB)
+):
+    isUpdated = crud.partialUpdateProduct(productID, setValues, db, models.Product)
+    if not isUpdated:
+        return JSONResponse(
+            {"message": "no product {} exists".format(productID)},
+            status_code = status.HTTP_404_NOT_FOUND
+        )
+    
+    return JSONResponse(
+        {"message": "successfully updated product {}".format(productID)},
+        status_code = status.HTTP_200_OK
+    )
+
 
 
 @app.delete("/products/{productID}")
-def deleteProduct(productID, db: Session = Depends(getDB)):
+def deleteProduct(productID: int, db: Session = Depends(getDB)):
     isDeleted = crud.deleteProduct(productID, db, models.Product)
     if not isDeleted:
         return JSONResponse(
-            {"message": "failed to get product {}".format(productID)},
+            {"message": "no product {} exists".format(productID)},
             status_code = status.HTTP_404_NOT_FOUND
         )
 
