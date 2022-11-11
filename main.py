@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from database import SessionLocal
 
 import models, schemas, crud, tasks
 from database import getDB
@@ -29,7 +28,7 @@ def importProducts(input: schemas.BaseImport):
     )
     
 
-@app.get("/import/{taskID}")
+@app.get("/import/{taskID}", response_model=schemas.Import)
 def getImport(taskID: str, db: Session = Depends(getDB)):
     imprt = crud.getImport(db, models.Import, taskID)
     if not imprt:
@@ -45,7 +44,7 @@ def getProducts(productID: int, db: Session = Depends(getDB)):
     return crud.getProductByID(productID, db, models.Product)
 
 
-@app.get("/products")
+@app.get("/products", response_model=list[schemas.Product])
 def getProducts(priceFrom: float, priceTo: float, db: Session = Depends(getDB)):
     return crud.getProductsFromRange(priceFrom, priceTo, db, models.Product)
 

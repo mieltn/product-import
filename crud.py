@@ -1,11 +1,6 @@
-from fastapi import Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import update
-import models, schemas
-from database import getDB
-# import sys
-# sys.setrecursionlimit(1500)
-# from sqlalchemy.sql import text
+import models
 
 
 def getOrCreateImport(model: models.Import, url: str, taskID: str, db: Session):
@@ -87,7 +82,7 @@ def updateOrCreateProduct(
     db: Session,
     model: models.Product
 ):
-    row['category_id'] = getOrCreateCategory(
+    row['category'] = getOrCreateCategory(
         db, models.Category, row.pop('category', None)
     )
     row['subcategory_id'] = getOrCreateSubcategory(
@@ -148,7 +143,7 @@ def partialUpdateProduct(productID: int, row: dict, db: Session, model: models.P
         )
     if 'brand' in row:
         row['brand_id'] = getOrCreateBrand(
-            db, models.Currency, row.pop('brand', None), row.pop('brand_url', None)
+            db, models.Brand, row.pop('brand', None), row.pop('brand_url', None)
         )
     if 'variation_0_color' in row:
         row['variation_0_color_id'] = getOrCreateColor(

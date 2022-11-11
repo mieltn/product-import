@@ -1,6 +1,3 @@
-# import os
-# import time
-
 from celery import Celery
 
 import models, crud

@@ -107,10 +107,18 @@ class Product(BaseProduct):
     image_url: str
     url: str
 
-    category_id: int
-    subcategory_id: int
-    currency_id: int
-    imprt_id: int
+    category: Category
+    subcategory: Subcategory
+    currency: Currency
+    brand: Brand | None = None
+    variation_0_color: Color | None = None
+    variation_1_color: Color | None = None
+
+
+    # category_id: int
+    # subcategory_id: int
+    # currency_id: int
+    # imprt_id: int
 
     class Config:
         orm_mode = True

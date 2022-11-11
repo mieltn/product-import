@@ -1,14 +1,18 @@
 import codecs
 import csv
 import requests
+from requests.exceptions import ConnectionError, MissingSchema
 from fastapi import status
 
 
 def validateURL(url):
-    r = requests.head(url)
-    if r.status_code == status.HTTP_404_NOT_FOUND:
+    try:
+        r = requests.head(url)
+        if r.status_code == status.HTTP_404_NOT_FOUND:
+            return False
+        return True
+    except (MissingSchema, ConnectionError) as _:
         return False
-    return True
 
 
 def fetchCSV(url):
