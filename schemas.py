@@ -11,6 +11,8 @@ class BaseImport(BaseModel):
 
 class Import(BaseImport):
     id: int
+    task_id: str
+    status: str
     created_on: datetime.datetime
     updated_on: datetime.datetime | None = None
 
@@ -60,7 +62,6 @@ class Color(BaseModel):
 
 
 class BaseProduct(BaseModel):
-    id: int | None = None
     model: str | None = None
     name: str | None = None
     current_price: float | None = None

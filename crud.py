@@ -1,31 +1,26 @@
+from fastapi import Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import update
 import models, schemas
+from database import getDB
 # import sys
 # sys.setrecursionlimit(1500)
 # from sqlalchemy.sql import text
 
 
-def createOrUpdateImport(db: Session, model: models.Import, url: str):
-    imp = db.query(model).filter(model.url == url).first()
-    if imp:
-        stmt = (
-            update(model)
-            .where(model.url == url)
-            .values(url = url)
-        )
-        db.execute(stmt)
-        db.refresh(imp)
-    else:
-        imp = model(url=url)
-        db.add(imp)
-        db.commit()
-        db.refresh(imp)
-    return imp
+def getOrCreateImport(model: models.Import, url: str, taskID: str, db: Session):
+    imprt = db.query(model).filter(model.url == url).first()
+    if imprt:
+        return imprt
+    imprt = model(url=url, task_id=taskID)
+    db.add(imprt)
+    db.commit()
+    db.refresh(imprt)
+    return imprt
 
 
-def getImport(db: Session, model: models.Import, importID: int):
-    return db.query(model).filter(model.id == importID).first()
+def getImport(db: Session, model: models.Import, taskID: str):
+    return db.query(model).filter(model.task_id == taskID).first()
 
 
 def getOrCreateCategory(db: Session, model: models.Category, name):
@@ -102,7 +97,7 @@ def updateOrCreateProduct(
         db, models.Currency, row.pop('currency', None)
     )
     row['brand_id'] = getOrCreateBrand(
-        db, models.Currency, row.pop('brand', None), row.pop('brand_url', None)
+        db, models.Brand, row.pop('brand', None), row.pop('brand_url', None)
     )
     row['variation_0_color_id'] = getOrCreateColor(
         db, models.Color, row.pop('variation_0_color', None)

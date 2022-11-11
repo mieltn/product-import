@@ -15,7 +15,9 @@ import datetime
 class Import(Base):
     __tablename__ = "imports"
     id = Column(Integer, primary_key=True)
+    task_id = Column(String(128))
     url = Column(String(256))
+    status = Column(String(128), default="CREATED")
     created_on = Column(DateTime, default=datetime.datetime.now)
     updated_on = Column(DateTime, onupdate=datetime.datetime.now)
 

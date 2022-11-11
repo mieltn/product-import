@@ -4,3 +4,5 @@ sqlalchemy
 alembic
 requests
 psycopg2
+celery
+redis

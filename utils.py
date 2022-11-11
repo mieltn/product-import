@@ -5,13 +5,14 @@ from fastapi import status
 
 
 def validateURL(url):
-    r = requests.get(url)
-    if r.status_code != status.HTTP_200_OK:
-        return r, False
-    return r, True
+    r = requests.head(url)
+    if r.status_code == status.HTTP_404_NOT_FOUND:
+        return False
+    return True
 
 
-def fetchCSV(response):
+def fetchCSV(url):
+    response = requests.get(url)
     text = codecs.iterdecode(response.iter_lines(), 'utf-8')
     reader = csv.reader(text, delimiter=',')
     headers = next(reader)

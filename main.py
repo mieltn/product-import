@@ -3,53 +3,38 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from database import SessionLocal
 
-import models, schemas, crud
-from utils import validateURL, fetchCSV
+import models, schemas, crud, tasks
+from database import getDB
+from utils import validateURL
 
 
 app = FastAPI()
 
-def getDB():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 
 @app.post("/import")
-def importProducts(input: schemas.BaseImport, db: Session = Depends(getDB)):
-    response, urlIsValid = validateURL(input.url)
+def importProducts(input: schemas.BaseImport):
+
+    urlIsValid = validateURL(input.url)
     if not urlIsValid:
         return JSONResponse(
             {"message": "invalid url"},
             status_code=status.HTTP_400_BAD_REQUEST
         )
-
-    data = fetchCSV(response)
-    imprt = crud.createOrUpdateImport(db, models.Import, input.url)
-    for row in data:
-        row['imprt_id'] = imprt.id
-        product = crud.updateOrCreateProduct(row, db, models.Product)
-        if not product:
-            return JSONResponse(
-                {"message": "failed to create product {}".format(row['id'])},
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-        break
+    
+    tsk = tasks.runImport.delay(input.url)
         
     return JSONResponse(
-        {"importID": imprt.id},
+        {"message": "successfully started the import", "taskID": tsk.id},
         status_code = status.HTTP_200_OK
     )
+    
 
-
-@app.get("/import/{importID}")
-def getImport(importID: int, db: Session = Depends(getDB)):
-    imprt = crud.getImport(db, models.Import, importID)
+@app.get("/import/{taskID}")
+def getImport(taskID: str, db: Session = Depends(getDB)):
+    imprt = crud.getImport(db, models.Import, taskID)
     if not imprt:
         return JSONResponse(
-            {"message": "no import {} exists".format(importID)},
+            {"message": "no import with taskID {} exists".format(taskID)},
             status_code = status.HTTP_404_NOT_FOUND
         )
     return imprt
@@ -65,7 +50,7 @@ def getProducts(priceFrom: float, priceTo: float, db: Session = Depends(getDB)):
     return crud.getProductsFromRange(priceFrom, priceTo, db, models.Product)
 
 
-@app.patch("/products/{productID}", response_model=schemas.Product)
+@app.patch("/products/{productID}")
 def partialUpdateProduct(
     productID: int,
     setValues: schemas.InputProduct,

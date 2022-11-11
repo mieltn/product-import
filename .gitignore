@@ -4,3 +4,4 @@ venv
 **.ipynb**
 test.py
 alembic/versions
+.env
