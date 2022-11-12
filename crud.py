@@ -23,13 +23,16 @@ def getImport(db: Session, model: models.Import, taskID: str):
 
 
 def getLastImport(db: Session, model: models.Import):
-    return (
+    imprt = (
         db
         .query(model)
         .filter(model.status == "SUCCESS")
         .order_by(desc(model.updated_on))
         .first()
     )
+    if not imprt:
+        return
+    return imprt.updated_on
 
 
 def getOrCreateCategory(db: Session, model: models.Category, name):

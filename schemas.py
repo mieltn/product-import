@@ -119,7 +119,7 @@ class Product(BaseProduct):
 
 class ProductsWithDatetime(BaseModel):
     products: list[Product]
-    last_import: datetime
+    last_import: datetime | None = None
 
     class Config:
         orm_mode = True

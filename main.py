@@ -54,8 +54,8 @@ def getImport(taskID: str, db: Session = Depends(getDB)):
 @app.get("/product", response_model=schemas.ProductsWithDatetime)
 def getProducts(priceFrom: float, priceTo: float, db: Session = Depends(getDB)):
     products = crud.getProductsFromRange(priceFrom, priceTo, db, models.Product)
-    imprt = crud.getLastImport(db, models.Import)
-    response = schemas.ProductsWithDatetime(products=products, last_import=imprt.updated_on)
+    last_import = crud.getLastImport(db, models.Import)
+    response = schemas.ProductsWithDatetime(products=products, last_import=last_import)
     return response
 
 
