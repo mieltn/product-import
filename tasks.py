@@ -1,34 +1,42 @@
-from celery import Celery
+from celery import Task, shared_task
+from database import getDB
 
 import models, crud
 from utils import fetchCSV
-from database import SessionLocal
 
 
-celery = Celery(
-    "productimport",
-    broker = "redis://localhost:6379/0"
-)
-
-
-@celery.task(bind=True)
-def runImport(self, url: str):
-    with SessionLocal() as db:
-        data = fetchCSV(url)
-        imprt = crud.getOrCreateImport(
-            models.Import,
-            url,
-            self.request.id,
-            db
+class ImportTask(Task):
+    db = next(getDB())
+    
+    def on_success(self, retval, task_id, args, kwargs):
+        (
+            self.db
+            .query(models.Import)
+            .filter(models.Import.task_id == task_id)
+            .update({"status": "SUCCESS"})
         )
-        imprt.task_id = self.request.id
-        imprt.status = "PENDING"
-        db.commit()
+        self.db.commit()
 
-        for row in data:
-            row['imprt_id'] = imprt.id
-            crud.updateOrCreateProduct(row, db, models.Product)
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        (
+            self.db
+            .query(models.Import)
+            .filter(models.Import.task_id == task_id)
+            .update({"status": "FAILURE"})
+        )
+        self.db.commit()
 
-        imprt.status = "SUCCESS"
-        db.commit()
-        return imprt.id
+
+@shared_task(base=ImportTask, bind=True)
+def runImport(self, url: str):
+    data = fetchCSV(url)
+    imprt = crud.updateOrCreateImport(
+        models.Import,
+        url,
+        self.request.id,
+        self.db
+    )
+
+    for row in data:
+        row['imprt_id'] = imprt.id
+        crud.updateOrCreateProduct(row, self.db, models.Product)

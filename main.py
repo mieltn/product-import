@@ -2,12 +2,16 @@ from fastapi import FastAPI, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from config import create_app
 import models, schemas, crud, tasks
 from database import getDB
 from utils import validateURL
 
+from celery.result import AsyncResult
 
-app = FastAPI()
+
+app = create_app()
+celery = app.celery_app
 
 
 @app.post("/import")
@@ -21,35 +25,41 @@ def importProducts(input: schemas.BaseImport):
         )
     
     tsk = tasks.runImport.delay(input.url)
-        
+
     return JSONResponse(
         {"message": "successfully started the import", "taskID": tsk.id},
         status_code = status.HTTP_200_OK
     )
     
 
-@app.get("/import/{taskID}", response_model=schemas.Import)
+@app.get("/import/{taskID}")
 def getImport(taskID: str, db: Session = Depends(getDB)):
     imprt = crud.getImport(db, models.Import, taskID)
     if not imprt:
         return JSONResponse(
-            {"message": "no import with taskID {} exists".format(taskID)},
+            {"message": "no import with task id {} exists".format(taskID)},
             status_code = status.HTTP_404_NOT_FOUND
         )
-    return imprt
+    
+    result = AsyncResult(taskID)
+    return JSONResponse(
+        {
+            "taskID": result.id,
+            "status": result.status
+        },
+        status_code = status.HTTP_200_OK
+    )
 
 
-@app.get("/products/{productID}", response_model=schemas.Product)
-def getProducts(productID: int, db: Session = Depends(getDB)):
-    return crud.getProductByID(productID, db, models.Product)
-
-
-@app.get("/products", response_model=list[schemas.Product])
+@app.get("/product", response_model=schemas.ProductsWithDatetime)
 def getProducts(priceFrom: float, priceTo: float, db: Session = Depends(getDB)):
-    return crud.getProductsFromRange(priceFrom, priceTo, db, models.Product)
+    products = crud.getProductsFromRange(priceFrom, priceTo, db, models.Product)
+    imprt = crud.getLastImport(db, models.Import)
+    response = schemas.ProductsWithDatetime(products=products, last_import=imprt.updated_on)
+    return response
 
 
-@app.patch("/products/{productID}")
+@app.patch("/product/{productID}")
 def partialUpdateProduct(
     productID: int,
     setValues: schemas.InputProduct,
@@ -71,7 +81,7 @@ def partialUpdateProduct(
     )
 
 
-@app.delete("/products/{productID}")
+@app.delete("/product/{productID}")
 def deleteProduct(productID: int, db: Session = Depends(getDB)):
     isDeleted = crud.deleteProduct(productID, db, models.Product)
     if not isDeleted:
@@ -84,5 +94,4 @@ def deleteProduct(productID: int, db: Session = Depends(getDB)):
         {"message": "successfully deleted product {}".format(productID)},
         status_code = status.HTTP_200_OK
     )
-
 

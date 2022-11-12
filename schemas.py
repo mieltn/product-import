@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-import datetime
+from datetime import datetime
 
 
 class BaseImport(BaseModel):
@@ -12,9 +12,8 @@ class BaseImport(BaseModel):
 class Import(BaseImport):
     id: int
     task_id: str
-    status: str
-    created_on: datetime.datetime
-    updated_on: datetime.datetime | None = None
+    created_on: datetime
+    updated_on: datetime | None = None
 
     class Config:
         orm_mode = True
@@ -114,11 +113,13 @@ class Product(BaseProduct):
     variation_0_color: Color | None = None
     variation_1_color: Color | None = None
 
+    class Config:
+        orm_mode = True
 
-    # category_id: int
-    # subcategory_id: int
-    # currency_id: int
-    # imprt_id: int
+
+class ProductsWithDatetime(BaseModel):
+    products: list[Product]
+    last_import: datetime
 
     class Config:
         orm_mode = True

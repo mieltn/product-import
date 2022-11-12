@@ -1,21 +1,35 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import update
+from sqlalchemy import update, desc
 import models
 
 
-def getOrCreateImport(model: models.Import, url: str, taskID: str, db: Session):
+def updateOrCreateImport(model: models.Import, url: str, taskID: str, db: Session):
     imprt = db.query(model).filter(model.url == url).first()
     if imprt:
-        return imprt
-    imprt = model(url=url, task_id=taskID)
-    db.add(imprt)
-    db.commit()
-    db.refresh(imprt)
+        imprt.task_id = taskID
+        imprt.status = "PENDING"
+        db.commit()
+        db.refresh(imprt)
+    else:
+        imprt = model(url=url, task_id=taskID)
+        db.add(imprt)
+        db.commit()
+        db.refresh(imprt)
     return imprt
 
 
 def getImport(db: Session, model: models.Import, taskID: str):
     return db.query(model).filter(model.task_id == taskID).first()
+
+
+def getLastImport(db: Session, model: models.Import):
+    return (
+        db
+        .query(model)
+        .filter(model.status == "SUCCESS")
+        .order_by(desc(model.updated_on))
+        .first()
+    )
 
 
 def getOrCreateCategory(db: Session, model: models.Category, name):
@@ -82,7 +96,7 @@ def updateOrCreateProduct(
     db: Session,
     model: models.Product
 ):
-    row['category'] = getOrCreateCategory(
+    row['category_id'] = getOrCreateCategory(
         db, models.Category, row.pop('category', None)
     )
     row['subcategory_id'] = getOrCreateSubcategory(
@@ -117,10 +131,6 @@ def updateOrCreateProduct(
         db.refresh(product)
         
     return product
-
-
-def getProductByID(productID: int, db: Session, model: models.Product):
-    return db.query(model).filter(model.id == productID).first()
 
 
 def getProductsFromRange(priceFrom: float, priceTo: float, db: Session, model: models.Product):
