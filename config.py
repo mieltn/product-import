@@ -15,6 +15,7 @@ SQLALCHEMY_DATABASE_URL = "postgresql://{}:{}@{}:{}/{}".format(
     os.environ.get("POSTGRES_DB", "productimport")
 )
 
+
 def create_celery() -> Celery:
     app = current_celery_app
     app.conf.broker_url = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
