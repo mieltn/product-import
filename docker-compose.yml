@@ -1,0 +1,47 @@
+version: '3'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: productimport-main
+    command: bash start.sh
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    ports:
+      - 8000:8000
+    depends_on:
+      - db
+      - celery
+
+  db:
+    image: postgres
+    # environment:
+    #   - POSTGRES_DB=postgres
+    #   - POSTGRES_USER=postgres
+    #   - POSTGRES_PASSWORD=postgres
+    env_file:
+      - .env
+    ports:
+      - 5432:5432
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: productimport-celery
+    command: celery -A main.celery worker -l info
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - db
+
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
